@@ -11,34 +11,47 @@ pub const c_source_files = &[_][]const u8{
     "mlx_mouse.c",                  "mlx_screen_size.c",         "mlx_destroy_display.c",
 };
 
-pub const c_source_flags = &[_][]const u8{
+pub const c_debug_flags = &[_][]const u8{
+    "-fno-omit-frame-pointer",
+    "-g3",
+};
+pub const c_release_flags = &[_][]const u8{
     "-O3",
 };
-
-pub const source_dir = "src/";
+pub const source_dir = "mlx/source/";
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const c_source_flags = switch (optimize) {
+        .Debug => c_debug_flags,
+        else => c_release_flags,
+    };
 
-    const lib = b.addStaticLibrary(.{
-        .name = "minilibx",
-        .root_source_file = b.path("src/mlx.zig"),
+    const module = b.addModule("minilibx", .{
+        .root_source_file = b.path("mlx/mlx.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
-    lib.addIncludePath(b.path("src/mlx_int.h"));
-    lib.addIncludePath(b.path("src/mlx.h"));
-    lib.linkSystemLibrary("bsd");
-    lib.linkSystemLibrary("X11");
-    lib.linkSystemLibrary("Xext");
-    lib.linkSystemLibrary("m");
+    module.addIncludePath(b.path("src/include/mlx_int.h"));
+    module.addIncludePath(b.path("src/include/mlx.h"));
+    module.linkSystemLibrary("bsd", .{
+        .needed = true,
+    });
+    module.linkSystemLibrary("X11", .{
+        .needed = true,
+    });
+    module.linkSystemLibrary("Xext", .{
+        .needed = true,
+    });
+    module.linkSystemLibrary("m", .{
+        .needed = true,
+    });
     inline for (c_source_files) |file| {
-        lib.addCSourceFile(.{
+        module.addCSourceFile(.{
             .file = b.path(source_dir ++ file),
             .flags = c_source_flags,
         });
     }
-    b.installArtifact(lib);
 }
